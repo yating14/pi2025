@@ -22,13 +22,13 @@ def get_current_temperature():
 try:
     data = pd.read_csv("fan_usage_data.csv")
 except FileNotFoundError:
-    data = pd.DataFrame(columns=['timestamp','temperature', 'hour', 'weekday', 'fan_status', 'total_duration'])
+    data = pd.DataFrame(columns=['timestamp','temperature', 'hour', 'weekday', 'fan_status'])
 
 # 取得當前環境數據
 def get_current_data(fan_status):
     now = datetime.datetime.now()
     current_temp = get_current_temperature()
-    return [now, current_temp, now.hour, now.weekday(), fan_status, total_duration]
+    return [now, current_temp, now.hour, now.weekday(), fan_status]
 
 # 當使用者開關風扇時，自動記錄
 def log_user_action(fan_status):
