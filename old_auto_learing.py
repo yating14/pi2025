@@ -22,13 +22,13 @@ def get_current_temperature():
 try:
     data = pd.read_csv("fan_usage_data.csv")
 except FileNotFoundError:
-    data = pd.DataFrame(columns=['temperature', 'hour', 'weekday', 'fan_status', 'timestamp'])
+    data = pd.DataFrame(columns=['timestamp','temperature', 'hour', 'weekday', 'fan_status', 'total_duration'])
 
 # 取得當前環境數據
 def get_current_data(fan_status):
     now = datetime.datetime.now()
     current_temp = get_current_temperature()
-    return [current_temp, now.hour, now.weekday(), fan_status, now]
+    return [now, current_temp, now.hour, now.weekday(), fan_status, total_duration]
 
 # 當使用者開關風扇時，自動記錄
 def log_user_action(fan_status):
@@ -57,7 +57,7 @@ def train_ai():
     if len(data) < 10:  # 先收集至少10筆資料才開始訓練
         return
     
-    X = data[['temperature', 'hour', 'weekday']]
+    X = data[['temperature', 'hour', 'weekday', 'total_duration']]
     y = data['fan_status']
 
     model = RandomForestClassifier()
