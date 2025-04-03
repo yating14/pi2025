@@ -45,7 +45,7 @@ def calculate_fan_usage():
     for i in range(1, len(data)):
         if data.loc[i - 1, 'fan_status'] == 1 and data.loc[i, 'fan_status'] == 0:
             start_time = datetime.datetime.strptime(str(data.loc[i - 1, 'timestamp']), "%Y-%m-%d %H:%M:%S.%f")
-            end_time = datetime.datetime.strptime(data.loc[i, 'timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+            end_time = datetime.datetime.strptime(str(data.loc[i, 'timestamp']), "%Y-%m-%d %H:%M:%S.%f")
             duration = end_time - start_time
             total_duration += duration
 
