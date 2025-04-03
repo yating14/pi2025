@@ -2,11 +2,11 @@ import pandas as pd
 import joblib
 import datetime
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-import numpy as np
 import adafruit_amg88xx
 import busio
 import board
+from sklearn.ensemble import RandomForestClassifier
+import time
 
 # 初始化 I2C 和感測器
 i2c_bus = busio.I2C(board.SCL, board.SDA)
@@ -22,75 +22,74 @@ def get_current_temperature():
 try:
     data = pd.read_csv("fan_usage_data.csv")
 except FileNotFoundError:
-    data = pd.DataFrame(columns=['temperature', 'hour', 'weekday', 'fan_status', 'timestamp'])
+    data = pd.DataFrame(columns=['timestamp', 'temperature', 'time_of_day', 'day_of_week', 'fan_status', 'usage_duration'])
 
-# 取得當前環境數據
-def get_current_data(fan_status):
+def get_time_of_day(hour):
+    """ 根據小時數判斷時間區間 """
+    if 6 <= hour < 12:
+        return "morning"
+    elif 12 <= hour < 18:
+        return "afternoon"
+    elif 18 <= hour < 24:
+        return "evening"
+    else:
+        return "night"
+
+def get_current_data(fan_status, duration):
     now = datetime.datetime.now()
     current_temp = get_current_temperature()
-    return [current_temp, now.hour, now.weekday(), fan_status, now]
+    time_of_day = get_time_of_day(now.hour)
+    return [now, current_temp, time_of_day, now.strftime('%A'), fan_status, duration]
 
-# 當使用者開關風扇時，自動記錄
 def log_user_action(fan_status):
     global data
-    new_entry = get_current_data(fan_status)
+    duration = 0
+    
+    if len(data) > 0 and data.iloc[-1]['fan_status'] == "ON":
+        last_time = datetime.datetime.strptime(data.iloc[-1]['timestamp'], "%Y-%m-%d %H:%M:%S")
+        duration = (datetime.datetime.now() - last_time).seconds
+    
+    new_entry = get_current_data("ON" if fan_status == 1 else "OFF", duration)
     data.loc[len(data)] = new_entry
     data.to_csv("fan_usage_data.csv", index=False)
 
-# 計算風扇開啟時間
 def calculate_fan_usage():
-    global data
-    total_duration = datetime.timedelta(0)
+    total_duration = data[data['fan_status'] == "ON"]['usage_duration'].sum()
+    print(f"總共開啟風扇時間：{total_duration} 秒")
 
-    for i in range(1, len(data)):
-        if data.loc[i - 1, 'fan_status'] == 1 and data.loc[i, 'fan_status'] == 0:
-            start_time = datetime.datetime.strptime(str(data.loc[i - 1, 'timestamp']), "%Y-%m-%d %H:%M:%S.%f")
-            end_time = datetime.datetime.strptime(str(data.loc[i, 'timestamp']), "%Y-%m-%d %H:%M:%S.%f")
-            duration = end_time - start_time
-            total_duration += duration
-
-    print(f"總共開啟風扇時間：{total_duration}")
-
-# 讓 AI 學習這些行為
 def train_ai():
     global data
-    if len(data) < 10:  # 先收集至少10筆資料才開始訓練
+    if len(data) < 10:
         return
     
-    X = data[['temperature', 'hour', 'weekday']]
-    y = data['fan_status']
-
+    X = data[['temperature', 'time_of_day', 'day_of_week']]
+    y = data['fan_status'].apply(lambda x: 1 if x == "ON" else 0)
+    
     model = RandomForestClassifier()
     model.fit(X, y)
-
+    
     joblib.dump(model, "fan_ai_model.pkl")
     print("AI 已更新學習!")
 
-# 讓 AI 自動判斷是否開風扇
 def predict_fan_action():
     try:
         model = joblib.load("fan_ai_model.pkl")
     except FileNotFoundError:
         print("模型尚未訓練，請先收集資料")
         return
-
-    current_temp, current_hour, current_weekday, _, _ = get_current_data(None)
-    prediction = model.predict([[current_temp, current_hour, current_weekday]])
-
+    
+    current_temp, time_of_day, day_of_week = get_current_data(None, 0)[1:4]
+    prediction = model.predict([[current_temp, time_of_day, day_of_week]])
+    
     if prediction[0] == 1:
         print("AI 建議開風扇")
     else:
         print("AI 建議關閉風扇")
 
-# 假設使用者開關風扇：
 log_user_action(1)  # 記錄使用者開啟風扇
+time.sleep(5)       # 模擬風扇運行 5 秒
 log_user_action(0)  # 記錄使用者關閉風扇
 
-# 訓練 AI
 train_ai()
-
-# 計算總開啟時間
 calculate_fan_usage()
-
-# AI 自動決定
 predict_fan_action()
