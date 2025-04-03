@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 
 # 讀取 CSV 檔案
-data = pd.read_csv("fan_usage_data_taichung.csv")
+data = pd.read_csv("fan_usage_data.csv")
 
 # 準備數據
 X = data[['temperature']]  # 特徵：溫度
